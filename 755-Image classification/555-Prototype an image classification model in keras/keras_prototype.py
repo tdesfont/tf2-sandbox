@@ -65,6 +65,13 @@ def process_path(file_path):
     return img, label
 
 
+def process_test_path(file_path):
+    # load the raw data from the file as a string
+    img = tf.io.read_file(file_path)
+    img = decode_img(img)
+    return img
+
+
 list_ds = tf.data.Dataset.list_files(str(image_dir/'*/*'))
 # Set `num_parallel_calls` so multiple images are loaded/processed in parallel.
 labeled_ds = list_ds.map(process_path, num_parallel_calls=AUTOTUNE)
@@ -100,3 +107,24 @@ model.compile(optimizer='adam',
               metrics=['accuracy'])
 
 model.fit(train_images, tf.where(label_batch)[:, 1:], epochs=20)
+
+# Test on new images
+
+
+test_dir = pathlib.Path("/Users/thibaultdesfontaines/data/leaf-classification/test_images")
+
+test_data_gen = image_generator.flow_from_directory(
+        directory=str(test_dir),
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        target_size=(IMG_HEIGHT, IMG_WIDTH),
+        classes=list(CLASS_NAMES))
+
+test_ds = tf.data.Dataset.list_files(str(test_dir/'*'))
+test_ds = test_ds.map(process_test_path, num_parallel_calls=AUTOTUNE)
+test_ds = prepare_for_training(test_ds)
+
+test_batch = next(iter(test_ds))
+test_batch = tf.squeeze(test_batch)
+
+predictions = np.array(model.apply(test_batch))
