@@ -109,7 +109,6 @@ model.compile(optimizer='adam',
 model.fit(train_images, tf.where(label_batch)[:, 1:], epochs=20)
 
 # Test on new images
-
 test_dir = pathlib.Path("/Users/thibaultdesfontaines/data/leaf-classification/test_images")
 
 test_data_gen = image_generator.flow_from_directory(
