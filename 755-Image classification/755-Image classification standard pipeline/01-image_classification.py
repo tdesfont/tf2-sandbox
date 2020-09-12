@@ -1,15 +1,17 @@
 """
-Standard image classification in TensorFlow
+Standard image classification in TensorFlow:
 https://www.tensorflow.org/tutorials/images/classification
 
 Build data input pipelines
 """
 
+# TensorFlow imports
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, MaxPooling2D
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
+# Generic imports
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,13 +19,13 @@ import pdb
 
 from utils.handler_data_path import get_data_path
 
-
 print("TensorFlow Version: {}".format(tf.__version__))
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
-
+# Define the generic working folders
 data_dir = os.path.join(get_data_path(), "leaf-classification")
+print('[+] data_dir={}'.format(data_dir))
 train_dir = os.path.join(data_dir, 'train_images')
 validation_dir = os.path.join(data_dir, 'validation_images')
 
@@ -87,7 +89,7 @@ model = Sequential([
 ])
 
 model.compile(optimizer='adam',
-              loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+              loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
               metrics=['accuracy'])
 
 model.summary()
@@ -95,18 +97,18 @@ model.summary()
 total_train = 0
 for class_ in os.listdir(train_dir):
     if class_[0] == ".":
-        pass
+        continue
     total_train += len(os.listdir(os.path.join(train_dir, class_)))
 
 total_val = 0
 for class_ in os.listdir(validation_dir):
     if class_[0] == ".":
-        pass
+        continue
     total_val += len(os.listdir(os.path.join(validation_dir, class_)))
 
 assert total_train + total_val == 990
 
-epochs = 8
+epochs = 15
 
 history = model.fit_generator(
     train_data_gen,
@@ -119,8 +121,8 @@ history = model.fit_generator(
 acc = history.history['accuracy']
 val_acc = history.history['val_accuracy']
 
-loss=history.history['loss']
-val_loss=history.history['val_loss']
+loss = history.history['loss']
+val_loss = history.history['val_loss']
 
 epochs_range = range(epochs)
 
