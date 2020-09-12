@@ -13,15 +13,13 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import pdb
-
 from utils.handler_data_path import get_data_path
 
+import pdb
 
 print("TensorFlow Version: {}".format(tf.__version__))
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
-
 
 data_dir = os.path.join(get_data_path(), "leaf-classification")
 train_dir = os.path.join(data_dir, 'train_images')
@@ -45,10 +43,7 @@ STEPS_PER_EPOCH = np.ceil(image_count/BATCH_SIZE)
 train_image_generator = ImageDataGenerator(
                      rescale=1./255,
                      horizontal_flip=True,
-                     rotation_range=360,
-                     zoom_range=0.5,
-                     width_shift_range=.15,
-                     height_shift_range=.15,
+                     rotation_range=360
                      )
 
 validation_image_generator = ImageDataGenerator(rescale=1./255)
@@ -64,6 +59,7 @@ train_data_gen = train_image_generator.flow_from_directory(
 val_data_gen = validation_image_generator.flow_from_directory(
                             batch_size=BATCH_SIZE,
                             directory=validation_dir,
+                            shuffle=True,
                             target_size=(IMG_HEIGHT, IMG_WIDTH),
                             classes=list(CLASS_NAMES),
                             class_mode='categorical')
@@ -73,7 +69,7 @@ sample_training_images, _ = next(train_data_gen)
 
 # This function will plot images in the form of a grid with 1 row and 5 columns where images are placed in each column.
 def plotImages(images_arr):
-    fig, axes = plt.subplots(1, 5, figsize=(20,20))
+    fig, axes = plt.subplots(1, 5, figsize=(20, 20))
     axes = axes.flatten()
     for img, ax in zip( images_arr, axes):
         ax.imshow(img)
@@ -81,18 +77,16 @@ def plotImages(images_arr):
     plt.tight_layout()
     plt.show()
 
-
 # plotImages(sample_training_images[:5])
+
 
 model = Sequential([
     Conv2D(16, 3, padding='same', activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH, 3)),
     MaxPooling2D(),
-    Dropout(0.2),
     Conv2D(32, 3, padding='same', activation='relu'),
     MaxPooling2D(),
     Conv2D(64, 3, padding='same', activation='relu'),
     MaxPooling2D(),
-    Dropout(0.2),
     Flatten(),
     Dense(512, activation='relu'),
     Dense(99)
@@ -104,20 +98,6 @@ model.compile(optimizer='adam',
 
 model.summary()
 
-total_train = 0
-for class_ in os.listdir(train_dir):
-    if class_[0] == ".":
-        pass
-    total_train += len(os.listdir(os.path.join(train_dir, class_)))
-
-total_val = 0
-for class_ in os.listdir(validation_dir):
-    if class_[0] == ".":
-        pass
-    total_val += len(os.listdir(os.path.join(validation_dir, class_)))
-
-assert total_train + total_val == 990
-
 checkpoint_path = "/Users/thibaultdesfontaines/data/training_1/cp.ckpt"
 checkpoint_dir = os.path.dirname(checkpoint_path)
 
@@ -125,7 +105,20 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                  save_weights_only=True,
                                                  verbose=1)
 
-epochs = 30
+
+total_train = 0
+for class_ in os.listdir(train_dir):
+    if class_[0] == ".":
+        continue
+    total_train += len(os.listdir(os.path.join(train_dir, class_)))
+
+total_val = 0
+for class_ in os.listdir(validation_dir):
+    if class_[0] == ".":
+        continue
+    total_val += len(os.listdir(os.path.join(validation_dir, class_)))
+
+epochs = 10
 
 history = model.fit_generator(
     train_data_gen,

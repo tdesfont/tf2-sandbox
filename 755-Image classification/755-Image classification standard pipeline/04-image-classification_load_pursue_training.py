@@ -1,21 +1,23 @@
 """
-Standard image classification in TensorFlow
+Standard image classification in TensorFlow:
 https://www.tensorflow.org/tutorials/images/classification
+
+We have a trained model in tensorflow, we store it and we would like to pursue training on some more training.
 """
 
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, MaxPooling2D
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-import os
 import numpy as np
-import matplotlib.pyplot as plt
+import os
 import pdb
 
 from utils.handler_data_path import get_data_path
 
-print("TensorFlow Version: {}".format(tf.__version__))
+print(tf.version.VERSION)
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
@@ -26,6 +28,12 @@ validation_dir = os.path.join(data_dir, 'validation_images')
 CLASS_NAMES = [x for x in sorted(os.listdir(str(train_dir))) if x[0] != '.']
 CLASS_NAMES = np.array(CLASS_NAMES)
 print("Number of classes: {}".format(len(CLASS_NAMES)))
+
+# Loading the model
+
+checkpoint_dir = "/Users/thibaultdesfontaines/data/training_1/"
+latest = tf.train.latest_checkpoint(checkpoint_dir)
+print("{}".format(latest))
 
 image_count = 0
 for class_ in [x for x in os.listdir(train_dir) if x[0] != '.']:
@@ -42,9 +50,6 @@ train_image_generator = ImageDataGenerator(
                      rescale=1./255,
                      horizontal_flip=True,
                      rotation_range=360,
-                     zoom_range=0.5,
-                     width_shift_range=.15,
-                     height_shift_range=.15,
                      )
 
 validation_image_generator = ImageDataGenerator(rescale=1./255)
@@ -66,29 +71,13 @@ val_data_gen = validation_image_generator.flow_from_directory(
 
 sample_training_images, _ = next(train_data_gen)
 
-
-# This function will plot images in the form of a grid with 1 row and 5 columns where images are placed in each column.
-def plotImages(images_arr):
-    fig, axes = plt.subplots(1, 5, figsize=(20,20))
-    axes = axes.flatten()
-    for img, ax in zip( images_arr, axes):
-        ax.imshow(img)
-        ax.axis('off')
-    plt.tight_layout()
-    plt.show()
-
-
-# plotImages(sample_training_images[:5])
-
 model = Sequential([
     Conv2D(16, 3, padding='same', activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH, 3)),
     MaxPooling2D(),
-    Dropout(0.2),
     Conv2D(32, 3, padding='same', activation='relu'),
     MaxPooling2D(),
     Conv2D(64, 3, padding='same', activation='relu'),
     MaxPooling2D(),
-    Dropout(0.2),
     Flatten(),
     Dense(512, activation='relu'),
     Dense(99)
@@ -99,6 +88,8 @@ model.compile(optimizer='adam',
               metrics=['accuracy'])
 
 model.summary()
+
+model.load_weights(latest)
 
 total_train = 0
 for class_ in os.listdir(train_dir):
@@ -112,16 +103,28 @@ for class_ in os.listdir(validation_dir):
         continue
     total_val += len(os.listdir(os.path.join(validation_dir, class_)))
 
-assert total_train + total_val == 990
+epochs = 10
 
-epochs = 40
+checkpoint_path = "/Users/thibaultdesfontaines/data/training_1/cp.ckpt"
+checkpoint_dir = os.path.dirname(checkpoint_path)
+
+cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
+                                                 save_weights_only=True,
+                                                 verbose=1)
+
+cp_earlystopping = tf.keras.callbacks.EarlyStopping(
+    monitor='val_loss', min_delta=0, patience=0, verbose=0, mode='auto',
+    baseline=None, restore_best_weights=False
+)
+
 
 history = model.fit_generator(
     train_data_gen,
     steps_per_epoch=total_train // BATCH_SIZE,
     epochs=epochs,
     validation_data=val_data_gen,
-    validation_steps=total_val // BATCH_SIZE
+    validation_steps=total_val // BATCH_SIZE,
+    callbacks=[cp_callback, cp_earlystopping]
 )
 
 acc = history.history['accuracy']
@@ -129,20 +132,3 @@ val_acc = history.history['val_accuracy']
 
 loss = history.history['loss']
 val_loss = history.history['val_loss']
-
-epochs_range = range(epochs)
-
-plt.figure(figsize=(8, 8))
-plt.subplot(1, 2, 1)
-plt.plot(epochs_range, acc, label='Training Accuracy')
-plt.plot(epochs_range, val_acc, label='Validation Accuracy')
-plt.legend(loc='lower right')
-plt.title('Training and Validation Accuracy')
-
-plt.subplot(1, 2, 2)
-plt.plot(epochs_range, loss, label='Training Loss')
-plt.plot(epochs_range, val_loss, label='Validation Loss')
-plt.legend(loc='upper right')
-plt.title('Training and Validation Loss')
-plt.show()
-
